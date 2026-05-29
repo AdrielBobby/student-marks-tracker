@@ -1,0 +1,303 @@
+'use client';
+
+import { useState } from 'react';
+import { Student } from '@/lib/types';
+import ThemeToggle from './ThemeToggle';
+
+interface StudentSidebarProps {
+  students: Student[];
+  collapsed: boolean;
+  onToggle: () => void;
+  onStudentAdded: () => void;
+  onStudentRemoved: () => void;
+}
+
+export default function StudentSidebar({
+  students,
+  collapsed,
+  onToggle,
+  onStudentAdded,
+  onStudentRemoved,
+}: StudentSidebarProps) {
+  const [newStudentName, setNewStudentName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newStudentName.trim();
+    if (!name) return;
+
+    if (name.length > 100) {
+      setError('Name must be 100 characters or less');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to add student');
+      }
+
+      setNewStudentName('');
+      onStudentAdded(); // Call parent callback
+    } catch (err: any) {
+      console.error('[Add Student Error]', err);
+      setError(err.message || 'An error occurred.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRemove = async (id: number, name: string) => {
+    const confirmed = window.confirm(`Are you sure you want to remove ${name}? This will preserve their historical marks but remove them from the active list.`);
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/students/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to remove student');
+      }
+
+      onStudentRemoved(); // Call parent callback
+    } catch (err: any) {
+      console.error('[Remove Student Error]', err);
+      alert(err.message || 'An error occurred while removing the student.');
+    }
+  };
+
+  // Sort students alphabetically
+  const sortedStudents = [...students].sort((a, b) => a.name.localeCompare(b.name));
+
+  return (
+    <aside
+      className="sidebar"
+      style={{
+        width: collapsed ? 52 : 260,
+        minWidth: collapsed ? 52 : 260,
+        background: 'var(--surface)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        overflow: 'hidden',
+        flexShrink: 0,
+        zIndex: 10,
+      }}
+    >
+      {/* Header row */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: collapsed ? 'center' : 'space-between',
+        padding: '0 14px',
+        height: 60,
+        borderBottom: '1px solid var(--border)',
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        {!collapsed && (
+          <span style={{
+            fontSize: 20,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            Marks Tracker
+          </span>
+        )}
+        <button
+          id="sidebar-toggle-btn"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          style={{
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            color: 'var(--text-muted)',
+            width: 30,
+            height: 30,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+            flexShrink: 0,
+          }}
+        >
+          {collapsed ? '→' : '←'}
+        </button>
+      </div>
+
+      {/* Body — hidden when collapsed */}
+      {!collapsed && (
+        <>
+          {/* Student count badge */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 14px 8px',
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              Students ({students.length})
+            </span>
+          </div>
+
+          {/* Add Student Form */}
+          <div style={{ padding: '0 14px 14px', borderBottom: '1px solid var(--border)' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input
+                type="text"
+                value={newStudentName}
+                onChange={e => {
+                  setNewStudentName(e.target.value);
+                  setError(null);
+                }}
+                placeholder="Enter student name..."
+                required
+                maxLength={100}
+                style={{
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  color: 'var(--text-primary)',
+                  fontSize: 13,
+                  outline: 'none',
+                  width: '100%',
+                }}
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting || !newStudentName.trim()}
+                style={{
+                  background: 'var(--accent)',
+                  border: 'none',
+                  borderRadius: 8,
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  width: '100%',
+                  opacity: (isSubmitting || !newStudentName.trim()) ? 0.6 : 1,
+                  transition: 'background 0.1s',
+                }}
+              >
+                {isSubmitting ? 'Adding...' : 'Add Student'}
+              </button>
+              {error && (
+                <span style={{ fontSize: 11, color: 'var(--pill-terrible)', marginTop: 4 }}>
+                  {error}
+                </span>
+              )}
+            </form>
+          </div>
+
+          {/* Student list */}
+          <div
+            className="sidebar-scroll"
+            style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}
+          >
+            {sortedStudents.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', marginTop: 16 }}>
+                No active students yet.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {sortedStudents.map(student => (
+                  <div
+                    key={student.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'var(--surface-2)',
+                      border: '1px solid var(--border)',
+                      gap: 8,
+                      minWidth: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={student.name}
+                    >
+                      {student.name}
+                    </span>
+                    <button
+                      onClick={() => handleRemove(student.id, student.name)}
+                      aria-label={`Remove ${student.name}`}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 20,
+                        height: 20,
+                        borderRadius: 4,
+                        padding: 0,
+                        transition: 'background 0.1s, color 0.1s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                        e.currentTarget.style.color = 'var(--pill-terrible)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                      }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Theme toggle at bottom */}
+          <div style={{
+            padding: '14px 16px',
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>Theme</span>
+            <ThemeToggle />
+          </div>
+        </>
+      )}
+    </aside>
+  );
+}

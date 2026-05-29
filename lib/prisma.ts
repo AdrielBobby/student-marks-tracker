@@ -1,26 +1,31 @@
+/**
+ * lib/prisma.ts — Prisma v7 Client Singleton with better-sqlite3 Driver Adapter
+ *
+ * Prisma v7 Architecture Notes:
+ *  - provider = "prisma-client" (new TypeScript-native generator)
+ *  - Driver adapters are REQUIRED — no built-in query engine for SQLite in v7.
+ *  - @prisma/adapter-better-sqlite3 connects via the native better-sqlite3 binding.
+ *  - PrismaBetterSqlite3 accepts { url } — NOT a raw Database instance.
+ *  - The singleton pattern prevents connection exhaustion during Next.js hot reloads.
+ *  - dotenv is NOT imported here — Next.js already exposes process.env in API routes.
+ *    (dotenv is only needed in prisma.config.ts and standalone scripts like test-db.ts)
+ */
+
 import { PrismaClient } from '../app/generated/prisma/client';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
-// Singleton pattern for Prisma Client in Next.js development
-// Prevents exhausting database connections during hot reloads
+// Attach to globalThis so the instance survives hot module replacement in dev.
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-let prisma: PrismaClient;
-
-if (typeof window === 'undefined') {
-  if (process.env.NODE_ENV === 'production') {
-    // In Prisma v7, the adapter handles creating the driver instance.
-    const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL || "file:./prisma/dev.db" });
-    prisma = new PrismaClient({ adapter });
-  } else {
-    // In development, use a global variable to preserve the instance across HMR
-    if (!globalForPrisma.prisma) {
-      const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL || "file:./prisma/dev.db" });
-      globalForPrisma.prisma = new PrismaClient({ adapter });
-    }
-    prisma = globalForPrisma.prisma;
-  }
+function createPrismaClient(): PrismaClient {
+  const url = process.env.DATABASE_URL ?? 'file:./prisma/dev.db';
+  const adapter = new PrismaBetterSqlite3({ url });
+  return new PrismaClient({ adapter });
 }
 
-export { prisma };
+/**
+ * The Prisma client singleton.
+ * Always defined — safe to import and use in any server-side context.
+ */
+export const prisma: PrismaClient =
+  globalForPrisma.prisma ?? (globalForPrisma.prisma = createPrismaClient());
