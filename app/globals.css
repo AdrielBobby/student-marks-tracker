@@ -1,0 +1,314 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────
+   Design Tokens — Light Mode (default)
+───────────────────────────────────────────── */
+:root,
+[data-theme="light"] {
+  --bg:           #f8fafc;
+  --surface:      #ffffff;
+  --surface-2:    #f1f5f9;
+  --border:       #e2e8f0;
+  --text-primary: #0f172a;
+  --text-muted:   #64748b;
+  --accent:       #0d9488;
+  --accent-hover: #0f766e;
+
+  /* Remark colours — same in both modes */
+  --pill-terrible:     #ef4444;
+  --pill-satisfactory: #f59e0b;
+  --pill-good:         #10b981;
+  --pill-excellent:    #3b82f6;
+  --pill-empty-border: #9ca3af;
+  --pill-empty-text:   #9ca3af;
+}
+
+/* ─────────────────────────────────────────────
+   Design Tokens — Dark Mode
+───────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:           #0f172a;
+  --surface:      #1e293b;
+  --surface-2:    #334155;
+  --border:       #475569;
+  --text-primary: #f1f5f9;
+  --text-muted:   #94a3b8;
+  --accent:       #0d9488;
+  --accent-hover: #14b8a6;
+}
+
+/* ─────────────────────────────────────────────
+   Base Reset & Body
+───────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─────────────────────────────────────────────
+   App Layout
+───────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px;
+  min-width: 0;
+}
+
+/* ─────────────────────────────────────────────
+   Sidebar
+───────────────────────────────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+/* ─────────────────────────────────────────────
+   Pill Components
+───────────────────────────────────────────── */
+.pill {
+  border-radius: 9999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.6;
+  cursor: default;
+}
+
+.pill-filled {
+  composes: pill;
+  color: #ffffff;
+}
+
+.pill-empty {
+  composes: pill;
+  border: 1.5px solid var(--pill-empty-border);
+  color: var(--pill-empty-text);
+  background: transparent;
+}
+
+/* ─────────────────────────────────────────────
+   Calendar Grid
+───────────────────────────────────────────── */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.calendar-day-header {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 10px 0;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.calendar-cell {
+  background: var(--surface);
+  min-height: 130px;
+  padding: 10px 8px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.1s ease;
+  position: relative;
+  user-select: none;
+}
+
+.calendar-cell:hover {
+  background: var(--surface-2);
+}
+
+.calendar-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.calendar-cell--today {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.calendar-cell--empty {
+  background: var(--surface-2);
+  cursor: default;
+  min-height: 130px;
+}
+
+.calendar-cell__day {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.calendar-cell__day--today {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.calendar-cell__pills {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────
+   Modal
+───────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.15s ease;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 28px;
+  width: 500px;
+  max-width: 94vw;
+  max-height: 82vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ─────────────────────────────────────────────
+   Theme Toggle (Sun / Moon pill switch)
+───────────────────────────────────────────── */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 4px 6px;
+  width: 76px;
+  height: 38px;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.theme-toggle:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.theme-toggle__thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: var(--accent);
+  position: absolute;
+  top: 4px;
+  left: 0;
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-toggle__thumb--dark  { transform: translateX(42px); }
+.theme-toggle__thumb--light { transform: translateX(6px);  }
+
+.theme-toggle__icon {
+  font-size: 15px;
+  z-index: 1;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────
+   Buttons & Inputs (shared reset styles)
+───────────────────────────────────────────── */
+button {
+  font-family: 'Inter', sans-serif;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Smooth scrollbar for sidebar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}

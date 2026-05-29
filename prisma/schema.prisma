@@ -1,0 +1,42 @@
+// Prisma v7 schema — Student Daily Marks Tracker
+//
+// IMPORTANT (Prisma v7 breaking change):
+// The `url` property is NO LONGER supported in schema.prisma for datasources.
+// Connection URLs must be configured exclusively in prisma.config.ts.
+// See: https://pris.ly/d/config-datasource
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  // url is set in prisma.config.ts → datasource.url via DATABASE_URL env var
+}
+
+// ─────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────
+
+model Student {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  marks     Mark[]
+}
+
+model Mark {
+  id        Int      @id @default(autoincrement())
+  student   Student  @relation(fields: [studentId], references: [id])
+  studentId Int
+  date      DateTime
+  mark      Int
+  remark    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Enforces one mark per student per day
+  @@unique([studentId, date])
+}
