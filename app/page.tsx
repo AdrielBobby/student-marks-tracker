@@ -1,101 +1,359 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useCallback, useEffect } from 'react';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function getCalendarDays(month: Date): (Date | null)[] {
+  const y = month.getFullYear();
+  const m = month.getMonth();
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const days: (Date | null)[] = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let d = 1; d <= daysInMonth; d++) days.push(new Date(y, m, d));
+  while (days.length % 7 !== 0) days.push(null);
+  return days;
+}
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
+// ─── Theme Toggle ────────────────────────────────────────────────────────────
+
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = stored ?? (prefersDark ? 'dark' : 'light');
+    setIsDark(theme === 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
+  }, []);
+
+  const toggle = () => {
+    const next = isDark ? 'light' : 'dark';
+    setIsDark(!isDark);
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <button
+      id="theme-toggle"
+      onClick={toggle}
+      className="theme-toggle"
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      <span className="theme-toggle__icon">☀️</span>
+      <span
+        className={`theme-toggle__thumb ${isDark ? 'theme-toggle__thumb--dark' : 'theme-toggle__thumb--light'}`}
+      />
+      <span className="theme-toggle__icon">🌙</span>
+    </button>
+  );
+}
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
+
+function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  return (
+    <aside
+      style={{
+        width: collapsed ? 52 : 260,
+        minWidth: collapsed ? 52 : 260,
+        background: 'var(--surface)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        overflow: 'hidden',
+        flexShrink: 0,
+        zIndex: 10,
+      }}
+    >
+      {/* Header row */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: collapsed ? 'center' : 'space-between',
+        padding: '0 14px',
+        height: 60,
+        borderBottom: '1px solid var(--border)',
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        {!collapsed && (
+          <span style={{
+            fontSize: 20,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+          }}>
+            Marks Tracker
+          </span>
+        )}
+        <button
+          id="sidebar-toggle-btn"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          style={{
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            color: 'var(--text-muted)',
+            width: 30,
+            height: 30,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+            flexShrink: 0,
+          }}
+        >
+          {collapsed ? '→' : '←'}
+        </button>
+      </div>
+
+      {/* Body — hidden when collapsed */}
+      {!collapsed && (
+        <>
+          {/* Student count + Add button */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 14px',
+            borderBottom: '1px solid var(--border)',
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>
+              0 Students
+            </span>
+            <button
+              id="add-student-btn"
+              style={{
+                background: 'var(--accent)',
+                border: 'none',
+                borderRadius: 6,
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 500,
+                padding: '4px 12px',
+                cursor: 'pointer',
+              }}
+            >
+              + Add
+            </button>
+          </div>
+
+          {/* Empty student list placeholder */}
+          <div
+            className="sidebar-scroll"
+            style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', marginTop: 16 }}>
+              No students yet.
+            </p>
+          </div>
+
+          {/* Theme toggle at bottom */}
+          <div style={{
+            padding: '14px 16px',
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Theme</span>
+            <ThemeToggle />
+          </div>
+        </>
+      )}
+    </aside>
+  );
+}
+
+// ─── Calendar Skeleton ────────────────────────────────────────────────────────
+
+function CalendarSkeleton({
+  currentMonth,
+  onPrev,
+  onNext,
+  onToday,
+}: {
+  currentMonth: Date;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+}) {
+  const today = new Date();
+  const days = getCalendarDays(currentMonth);
+
+  return (
+    <div>
+      {/* Calendar header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 20,
+      }}>
+        <h2 style={{
+          fontSize: 18,
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          margin: 0,
+        }}>
+          {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+        </h2>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            id="prev-month-btn"
+            onClick={onPrev}
+            style={navBtnStyle}
+            aria-label="Previous month"
+          >←</button>
+          <button
+            id="today-btn"
+            onClick={onToday}
+            style={navBtnStyle}
+            aria-label="Go to today"
+          >Today</button>
+          <button
+            id="next-month-btn"
+            onClick={onNext}
+            style={navBtnStyle}
+            aria-label="Next month"
+          >→</button>
         </div>
+      </div>
+
+      {/* Day names header */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: 1,
+        marginBottom: 1,
+      }}>
+        {DAY_NAMES.map(d => (
+          <div key={d} className="calendar-day-header">{d}</div>
+        ))}
+      </div>
+
+      {/* Grid */}
+      <div className="calendar-grid">
+        {days.map((date, i) => {
+          if (!date) {
+            return <div key={`empty-${i}`} className="calendar-cell--empty" />;
+          }
+          const isToday = isSameDay(date, today);
+          return (
+            <div
+              key={date.toISOString()}
+              className={`calendar-cell${isToday ? ' calendar-cell--today' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}
+            >
+              <span className={`calendar-cell__day${isToday ? ' calendar-cell__day--today' : ''}`}>
+                {date.getDate()}
+              </span>
+              {/* Pills will appear here once API is wired up */}
+              <div className="calendar-cell__pills" />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={{
+        marginTop: 20,
+        display: 'flex',
+        gap: 12,
+        alignItems: 'center',
+        flexWrap: 'wrap',
+      }}>
+        {[
+          { label: 'Terrible (1–3)',      color: '#ef4444' },
+          { label: 'Satisfactory (4–6)',  color: '#f59e0b' },
+          { label: 'Good (7–8)',          color: '#10b981' },
+          { label: 'Excellent (9–10)',    color: '#3b82f6' },
+        ].map(({ label, color }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span
+              className="pill-filled"
+              style={{ background: color, fontSize: 10, padding: '1px 8px' }}
+            >
+              {label.split(' ')[0]}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{label}</span>
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="pill-empty" style={{ fontSize: 10, padding: '1px 8px' }}>Name</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No mark</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const navBtnStyle: React.CSSProperties = {
+  background: 'var(--surface-2)',
+  border: '1px solid var(--border)',
+  borderRadius: 8,
+  color: 'var(--text-primary)',
+  cursor: 'pointer',
+  padding: '6px 14px',
+  fontSize: 13,
+  fontFamily: 'Inter, sans-serif',
+  transition: 'background 0.1s',
+};
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function HomePage() {
+  const [collapsed, setCollapsed] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(() => new Date());
+
+  const prevMonth = useCallback(() => {
+    setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  }, []);
+
+  const nextMonth = useCallback(() => {
+    setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  }, []);
+
+  const goToday = useCallback(() => {
+    setCurrentMonth(new Date());
+  }, []);
+
+  return (
+    <div className="app-layout">
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
+
+      <main className="main-content">
+        <CalendarSkeleton
+          currentMonth={currentMonth}
+          onPrev={prevMonth}
+          onNext={nextMonth}
+          onToday={goToday}
+        />
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

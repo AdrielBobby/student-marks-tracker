@@ -1,8 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─────────────────────────────────────────────
+   Google Fonts — Inter
+   Imported after Tailwind directives to avoid
+   PostCSS ordering issues.
+───────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 /* ─────────────────────────────────────────────
    Design Tokens — Light Mode (default)
@@ -18,7 +23,7 @@
   --accent:       #0d9488;
   --accent-hover: #0f766e;
 
-  /* Remark colours — same in both modes */
+  /* Remark pill colours — identical in both modes (per PRD) */
   --pill-terrible:     #ef4444;
   --pill-satisfactory: #f59e0b;
   --pill-good:         #10b981;
@@ -62,6 +67,7 @@ body {
   line-height: 1.5;
   transition: background-color 0.2s ease, color 0.2s ease;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ─────────────────────────────────────────────
@@ -98,8 +104,13 @@ body {
 
 /* ─────────────────────────────────────────────
    Pill Components
+   NOTE: No CSS Modules — base styles are
+   duplicated in both variants intentionally.
 ───────────────────────────────────────────── */
-.pill {
+
+/* Shared pill base — used via .pill-filled and .pill-empty */
+.pill-filled,
+.pill-empty {
   border-radius: 9999px;
   padding: 2px 10px;
   font-size: 11px;
@@ -113,13 +124,13 @@ body {
   cursor: default;
 }
 
+/* Filled pill — solid background, white text, bg set by inline style */
 .pill-filled {
-  composes: pill;
   color: #ffffff;
 }
 
+/* Empty / hollow pill — grey outline, no background */
 .pill-empty {
-  composes: pill;
   border: 1.5px solid var(--pill-empty-border);
   color: var(--pill-empty-text);
   background: transparent;
@@ -144,8 +155,9 @@ body {
   font-weight: 600;
   color: var(--text-muted);
   padding: 10px 0;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  background: var(--surface);
 }
 
 .calendar-cell {
@@ -187,6 +199,7 @@ body {
   font-weight: 500;
   line-height: 1;
   margin-bottom: 4px;
+  color: var(--text-primary);
 }
 
 .calendar-cell__day--today {
@@ -236,12 +249,15 @@ body {
 }
 
 @keyframes slideUp {
-  from { transform: translateY(12px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
 }
 
 /* ─────────────────────────────────────────────
-   Theme Toggle (Sun / Moon pill switch)
+   Theme Toggle — Sun / Moon pill switch
+   CSS-only animation via class toggle.
+   PRD spec: thumb translateX(42px) = dark (moon)
+              thumb translateX(6px) = light (sun)
 ───────────────────────────────────────────── */
 .theme-toggle {
   display: flex;
@@ -272,8 +288,10 @@ body {
   top: 4px;
   left: 0;
   transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
 }
 
+/* Thumb positions */
 .theme-toggle__thumb--dark  { transform: translateX(42px); }
 .theme-toggle__thumb--light { transform: translateX(6px);  }
 
@@ -282,15 +300,18 @@ body {
   z-index: 1;
   line-height: 1;
   pointer-events: none;
+  display: flex;
+  align-items: center;
 }
 
 /* ─────────────────────────────────────────────
-   Buttons & Inputs (shared reset styles)
+   Shared Button & Input Resets
 ───────────────────────────────────────────── */
 button {
   font-family: 'Inter', sans-serif;
 }
 
+/* Remove spin arrows from number inputs */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -301,14 +322,27 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Smooth scrollbar for sidebar */
+/* ─────────────────────────────────────────────
+   Sidebar Scrollbar (subtle thin style)
+───────────────────────────────────────────── */
 .sidebar-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
 .sidebar-scroll::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 4px;
+}
+
+/* ─────────────────────────────────────────────
+   Utility: smooth transitions for theme switch
+───────────────────────────────────────────── */
+.transition-theme {
+  transition: background-color 0.2s ease, color 0.2s ease,
+              border-color 0.2s ease;
 }
