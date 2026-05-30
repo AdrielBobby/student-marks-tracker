@@ -10,6 +10,7 @@ interface StudentSidebarProps {
   onToggle: () => void;
   onStudentAdded: () => void;
   onStudentRemoved: () => void;
+  onOpenScorecard: (studentId: number) => void;
 }
 
 export default function StudentSidebar({
@@ -18,8 +19,12 @@ export default function StudentSidebar({
   onToggle,
   onStudentAdded,
   onStudentRemoved,
+  onOpenScorecard,
 }: StudentSidebarProps) {
   const [newStudentName, setNewStudentName] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showDates, setShowDates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,14 +38,24 @@ export default function StudentSidebar({
       return;
     }
 
+    // Client-side date validation
+    if (startDate && endDate && endDate < startDate) {
+      setError('End date must be on or after start date');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
+      const body: Record<string, string> = { name };
+      if (startDate) body.startDate = startDate;
+      if (endDate)   body.endDate   = endDate;
+
       const res = await fetch('/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -49,7 +64,10 @@ export default function StudentSidebar({
       }
 
       setNewStudentName('');
-      onStudentAdded(); // Call parent callback
+      setStartDate('');
+      setEndDate('');
+      setShowDates(false);
+      onStudentAdded();
     } catch (err: any) {
       console.error('[Add Student Error]', err);
       setError(err.message || 'An error occurred.');
@@ -59,28 +77,38 @@ export default function StudentSidebar({
   };
 
   const handleRemove = async (id: number, name: string) => {
-    const confirmed = window.confirm(`Are you sure you want to remove ${name}? This will preserve their historical marks but remove them from the active list.`);
+    const confirmed = window.confirm(
+      `Remove ${name} from active views?\n\nExisting marks will be preserved in history, but the student will no longer appear in the active list.`
+    );
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/students/${id}`, {
-        method: 'DELETE',
-      });
-
+      const res = await fetch(`/api/students/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Failed to remove student');
       }
-
-      onStudentRemoved(); // Call parent callback
+      onStudentRemoved();
     } catch (err: any) {
       console.error('[Remove Student Error]', err);
       alert(err.message || 'An error occurred while removing the student.');
     }
   };
 
-  // Sort students alphabetically
   const sortedStudents = [...students].sort((a, b) => a.name.localeCompare(b.name));
+
+  // Shared input style
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface-2)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: '7px 10px',
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    outline: 'none',
+    width: '100%',
+    colorScheme: 'dark',
+  };
 
   return (
     <aside
@@ -98,7 +126,7 @@ export default function StudentSidebar({
         zIndex: 10,
       }}
     >
-      {/* Header row */}
+      {/* Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -144,18 +172,13 @@ export default function StudentSidebar({
         </button>
       </div>
 
-      {/* Body — hidden when collapsed */}
+      {/* Body */}
       {!collapsed && (
         <>
-          {/* Student count badge */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px 14px 8px',
-          }}>
+          {/* Student count */}
+          <div style={{ padding: '12px 14px 8px' }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Students ({students.length})
+              Active Today ({students.length})
             </span>
           </div>
 
@@ -165,24 +188,58 @@ export default function StudentSidebar({
               <input
                 type="text"
                 value={newStudentName}
-                onChange={e => {
-                  setNewStudentName(e.target.value);
-                  setError(null);
-                }}
-                placeholder="Enter student name..."
+                onChange={e => { setNewStudentName(e.target.value); setError(null); }}
+                placeholder="Student name..."
                 required
                 maxLength={100}
-                style={{
-                  background: 'var(--surface-2)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  color: 'var(--text-primary)',
-                  fontSize: 13,
-                  outline: 'none',
-                  width: '100%',
-                }}
+                style={inputStyle}
               />
+
+              {/* Toggle date fields */}
+              <button
+                type="button"
+                onClick={() => setShowDates(v => !v)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <span style={{ transform: showDates ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.15s', fontSize: 10 }}>▶</span>
+                Internship dates (optional)
+              </button>
+
+              {showDates && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Start date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={e => { setStartDate(e.target.value); setError(null); }}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>End date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      min={startDate || undefined}
+                      onChange={e => { setEndDate(e.target.value); setError(null); }}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={isSubmitting || !newStudentName.trim()}
@@ -200,10 +257,11 @@ export default function StudentSidebar({
                   transition: 'background 0.1s',
                 }}
               >
-                {isSubmitting ? 'Adding...' : 'Add Student'}
+                {isSubmitting ? 'Adding…' : 'Add Student'}
               </button>
+
               {error && (
-                <span style={{ fontSize: 11, color: 'var(--pill-terrible)', marginTop: 4 }}>
+                <span style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>
                   {error}
                 </span>
               )}
@@ -211,13 +269,10 @@ export default function StudentSidebar({
           </div>
 
           {/* Student list */}
-          <div
-            className="sidebar-scroll"
-            style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}
-          >
+          <div className="sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
             {sortedStudents.length === 0 ? (
               <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', marginTop: 16 }}>
-                No active students yet.
+                No active students today.
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -227,28 +282,72 @@ export default function StudentSidebar({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 12px',
+                      padding: '8px 10px',
                       borderRadius: 8,
                       background: 'var(--surface-2)',
                       border: '1px solid var(--border)',
-                      gap: 8,
+                      gap: 6,
                       minWidth: 0,
                     }}
                   >
-                    <span
+                    {/* Name — clickable to open scorecard */}
+                    <button
+                      onClick={() => onOpenScorecard(student.id)}
+                      aria-label={`View scorecard for ${student.name}`}
+                      title="View scorecard"
                       style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        flex: 1,
+                        minWidth: 0,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        color: 'var(--text-primary)',
                         fontSize: 13,
                         fontWeight: 500,
-                        color: 'var(--text-primary)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}
-                      title={student.name}
                     >
                       {student.name}
-                    </span>
+                    </button>
+
+                    {/* Scorecard icon */}
+                    <button
+                      onClick={() => onOpenScorecard(student.id)}
+                      aria-label={`Scorecard for ${student.name}`}
+                      title="View scorecard"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 22,
+                        height: 22,
+                        borderRadius: 4,
+                        padding: 0,
+                        flexShrink: 0,
+                        transition: 'background 0.1s, color 0.1s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(13, 148, 136, 0.15)';
+                        e.currentTarget.style.color = 'var(--accent)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                      }}
+                    >
+                      📊
+                    </button>
+
+                    {/* Remove button */}
                     <button
                       onClick={() => handleRemove(student.id, student.name)}
                       aria-label={`Remove ${student.name}`}
@@ -257,19 +356,20 @@ export default function StudentSidebar({
                         border: 'none',
                         color: 'var(--text-muted)',
                         cursor: 'pointer',
-                        fontSize: 14,
+                        fontSize: 15,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: 20,
-                        height: 20,
+                        width: 22,
+                        height: 22,
                         borderRadius: 4,
                         padding: 0,
+                        flexShrink: 0,
                         transition: 'background 0.1s, color 0.1s',
                       }}
                       onMouseEnter={e => {
                         e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                        e.currentTarget.style.color = 'var(--pill-terrible)';
+                        e.currentTarget.style.color = '#ef4444';
                       }}
                       onMouseLeave={e => {
                         e.currentTarget.style.background = 'transparent';
@@ -284,7 +384,7 @@ export default function StudentSidebar({
             )}
           </div>
 
-          {/* Theme toggle at bottom */}
+          {/* Theme toggle */}
           <div style={{
             padding: '14px 16px',
             borderTop: '1px solid var(--border)',

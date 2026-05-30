@@ -20,10 +20,12 @@ datasource db {
 // ─────────────────────────────────────────────
 
 model Student {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  isActive  Boolean   @default(true)
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
   marks     Mark[]
 }
 

@@ -242,15 +242,26 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
       </div>
 
       {/* Performance Mark Entry Modal Overlay */}
-      {selectedDate && (
-        <MarkModal
-          date={selectedDate}
-          students={students}
-          existingMarks={marksByDate[getUTCDateKey(selectedDate)] || []}
-          onClose={() => setSelectedDate(null)}
-          onSave={handleSaveMarks}
-        />
-      )}
+      {selectedDate && (() => {
+        // Filter students who are eligible on the selected date.
+        // CalendarCell still receives the full `students` prop for pill display.
+        const selKey = getUTCDateKey(selectedDate); // "YYYY-MM-DD"
+        const eligibleStudents = students.filter(s => {
+          if (!s.isActive) return false;
+          if (s.startDate && s.startDate.substring(0, 10) > selKey) return false;
+          if (s.endDate   && s.endDate.substring(0, 10)   < selKey) return false;
+          return true;
+        });
+        return (
+          <MarkModal
+            date={selectedDate}
+            students={eligibleStudents}
+            existingMarks={marksByDate[getUTCDateKey(selectedDate)] || []}
+            onClose={() => setSelectedDate(null)}
+            onSave={handleSaveMarks}
+          />
+        );
+      })()}
     </div>
   );
 }
