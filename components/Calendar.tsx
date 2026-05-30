@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Student, DayMark } from '@/lib/types';
+import { isHoliday, isStudentEligibleOnDate, toLocalDateKey } from '@/lib/dates';
 import CalendarCell from './CalendarCell';
 import MarkModal from './MarkModal';
 
@@ -31,11 +32,15 @@ function getCalendarDays(monthDate: Date): (Date | null)[] {
   return days;
 }
 
+// toLocalDateKey is now imported from lib/dates;
+// keep a local alias for the marks lookup key (same format)
 function getUTCDateKey(d: Date): string {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  return toLocalDateKey(d);
+}
+
+/** Guard: never open modal on a holiday */
+function handleOpenCell(date: Date, setter: (d: Date) => void) {
+  if (!isHoliday(date)) setter(date);
 }
 
 interface CalendarProps {
@@ -205,7 +210,7 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
               date={date}
               students={students}
               marks={cellMarks}
-              onOpen={setSelectedDate}
+              onOpen={d => handleOpenCell(d, setSelectedDate)}
             />
           );
         })}
@@ -243,15 +248,11 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
 
       {/* Performance Mark Entry Modal Overlay */}
       {selectedDate && (() => {
-        // Filter students who are eligible on the selected date.
-        // CalendarCell still receives the full `students` prop for pill display.
-        const selKey = getUTCDateKey(selectedDate); // "YYYY-MM-DD"
-        const eligibleStudents = students.filter(s => {
-          if (!s.isActive) return false;
-          if (s.startDate && s.startDate.substring(0, 10) > selKey) return false;
-          if (s.endDate   && s.endDate.substring(0, 10)   < selKey) return false;
-          return true;
-        });
+        // Use shared isStudentEligibleOnDate helper — same rule as CalendarCell pills.
+        const selKey = getUTCDateKey(selectedDate);
+        const eligibleStudents = students.filter(s =>
+          s.isActive && isStudentEligibleOnDate(s, selKey)
+        );
         return (
           <MarkModal
             date={selectedDate}

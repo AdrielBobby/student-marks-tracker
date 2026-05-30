@@ -5,7 +5,7 @@
  *   - averageMark        arithmetic mean of all stored marks
  *   - averageRemark      remark band derived from averageMark
  *   - markedDaysCount    number of mark records
- *   - eligibleDaysCount  calendar days in internship window up to today (null if no dates)
+ *   - eligibleDaysCount  working days (excl. Sundays & 2nd Saturdays) in internship window up to today
  *   - coverage           markedDaysCount / eligibleDaysCount (null if eligibleDaysCount unavailable)
  *   - remarkCounts       per-band day counts { Terrible, Satisfactory, Good, Excellent }
  *   - recentMarks        last 10 marks ordered by date DESC
@@ -14,14 +14,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getRemark } from '@/lib/remarks';
+import { countWorkingDays } from '@/lib/dates';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Number of calendar days between two UTC midnight dates (inclusive on both ends) */
-function daysBetween(start: Date, end: Date): number {
-  const msPerDay = 86400000;
-  return Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1;
-}
 
 /** UTC midnight for today */
 function todayUTC(): Date {
@@ -91,7 +86,8 @@ export async function GET(
         : today;
       // Only count if window has started
       if (student.startDate <= today) {
-        eligibleDaysCount = daysBetween(student.startDate, windowEnd);
+        // countWorkingDays excludes Sundays and 2nd Saturdays (Phase 6A)
+        eligibleDaysCount = countWorkingDays(student.startDate, windowEnd);
       } else {
         // Internship hasn't started yet
         eligibleDaysCount = 0;
