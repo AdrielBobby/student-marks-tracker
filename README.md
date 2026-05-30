@@ -49,7 +49,6 @@ To open Prisma Studio, open a PowerShell terminal and run:
 
 ```powershell
 # 1. Navigate to the project directory
-cd C:\Users\NETCOM\.gemini\antigravity-ide\scratch\student-marks-tracker
 
 # 2. Start Prisma Studio
 npx.cmd prisma studio
