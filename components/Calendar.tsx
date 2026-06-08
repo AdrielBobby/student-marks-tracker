@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Student, DayMark } from '@/lib/types';
 import { isHoliday, isStudentEligibleOnDate, toLocalDateKey } from '@/lib/dates';
 import CalendarCell from './CalendarCell';
@@ -32,8 +33,7 @@ function getCalendarDays(monthDate: Date): (Date | null)[] {
   return days;
 }
 
-// toLocalDateKey is now imported from lib/dates;
-// keep a local alias for the marks lookup key (same format)
+// toLocalDateKey is imported from lib/dates; keep a local alias for marks lookup
 function getUTCDateKey(d: Date): string {
   return toLocalDateKey(d);
 }
@@ -47,14 +47,27 @@ interface CalendarProps {
   students: Student[];
   refreshKey: number;
   onMarksUpdated?: () => void;
+  // Lifted selectedDate state — controlled by page.tsx for scroll-lock coordination
+  selectedDate: Date | null;
+  onSelectDate: (date: Date | null) => void;
+  // Mobile top-bar trigger — passed down as a render prop from page
+  mobileTopBar?: React.ReactNode;
 }
 
-export default function Calendar({ students, refreshKey, onMarksUpdated }: CalendarProps) {
+export default function Calendar({
+  students,
+  refreshKey,
+  onMarksUpdated,
+  selectedDate,
+  onSelectDate,
+  mobileTopBar,
+}: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [marksByDate, setMarksByDate] = useState<Record<string, DayMark[]>>({});
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Legend collapsed state — mobile only (CSS ensures toggle button only shows on mobile)
+  const [legendOpen, setLegendOpen] = useState(false);
 
   const fetchMarks = useCallback(async () => {
     setIsLoading(true);
@@ -72,7 +85,6 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
       
       const mapped: Record<string, DayMark[]> = {};
       data.forEach((m: any) => {
-        // Parse date string (substring handles "YYYY-MM-DD" portion from ISO format)
         const dateKey = m.date.substring(0, 10);
         if (!mapped[dateKey]) {
           mapped[dateKey] = [];
@@ -119,8 +131,18 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
     }
   };
 
+  const LEGEND_ITEMS = [
+    { label: 'Terrible (1–3)',      color: '#ef4444' },
+    { label: 'Satisfactory (4–6)',  color: '#f59e0b' },
+    { label: 'Good (7–8)',          color: '#10b981' },
+    { label: 'Excellent (9–10)',    color: '#3b82f6' },
+  ];
+
   return (
     <div>
+      {/* Mobile top bar — only visible on mobile via CSS, passed from page.tsx */}
+      {mobileTopBar}
+
       {/* Calendar Header Nav */}
       <div style={{
         display: 'flex',
@@ -149,7 +171,7 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
             style={navBtnStyle}
             aria-label="Previous month"
           >
-            ←
+            <ChevronLeft size={16} />
           </button>
           <button
             id="today-btn"
@@ -165,7 +187,7 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
             style={navBtnStyle}
             aria-label="Next month"
           >
-            →
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>
@@ -210,39 +232,68 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
               date={date}
               students={students}
               marks={cellMarks}
-              onOpen={d => handleOpenCell(d, setSelectedDate)}
+              onOpen={d => handleOpenCell(d, onSelectDate)}
             />
           );
         })}
       </div>
 
       {/* Colour Remark Legend */}
-      <div style={{
-        marginTop: 20,
-        display: 'flex',
-        gap: 12,
-        alignItems: 'center',
-        flexWrap: 'wrap',
-      }}>
-        {[
-          { label: 'Terrible (1–3)',      color: '#ef4444' },
-          { label: 'Satisfactory (4–6)',  color: '#f59e0b' },
-          { label: 'Good (7–8)',          color: '#10b981' },
-          { label: 'Excellent (9–10)',    color: '#3b82f6' },
-        ].map(({ label, color }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span
-              className="pill-filled"
-              style={{ background: color, fontSize: 10, padding: '1px 8px' }}
-            >
-              {label.split(' ')[0]}
-            </span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{label}</span>
+      <div className="legend-container" style={{ marginTop: 20 }}>
+        {/* Mobile collapse trigger — hidden on desktop via CSS */}
+        <button
+          className="legend-toggle"
+          onClick={() => setLegendOpen(o => !o)}
+          aria-expanded={legendOpen}
+          aria-label="Toggle legend"
+        >
+          {/* Coloured dots preview */}
+          <span className="legend-dots">
+            {LEGEND_ITEMS.map(({ color }) => (
+              <span
+                key={color}
+                style={{
+                  display: 'inline-block',
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: color,
+                }}
+              />
+            ))}
+          </span>
+          <span className="legend-toggle__label">
+            Legend
+            <ChevronRight
+              size={14}
+              style={{
+                display: 'inline-block',
+                marginLeft: 4,
+                transform: legendOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s',
+                verticalAlign: 'middle',
+              }}
+            />
+          </span>
+        </button>
+
+        {/* Legend items — always visible on desktop; shown/hidden on mobile */}
+        <div className={`legend-items${legendOpen ? ' legend-items--open' : ''}`}>
+          {LEGEND_ITEMS.map(({ label, color }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span
+                className="pill-filled"
+                style={{ background: color, fontSize: 10, padding: '1px 8px' }}
+              >
+                {label.split(' ')[0]}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{label}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="pill-empty" style={{ fontSize: 10, padding: '1px 8px' }}>Name</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No mark</span>
           </div>
-        ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="pill-empty" style={{ fontSize: 10, padding: '1px 8px' }}>Name</span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No mark</span>
         </div>
       </div>
 
@@ -258,7 +309,7 @@ export default function Calendar({ students, refreshKey, onMarksUpdated }: Calen
             date={selectedDate}
             students={eligibleStudents}
             existingMarks={marksByDate[getUTCDateKey(selectedDate)] || []}
-            onClose={() => setSelectedDate(null)}
+            onClose={() => onSelectDate(null)}
             onSave={handleSaveMarks}
           />
         );
@@ -273,8 +324,11 @@ const navBtnStyle: React.CSSProperties = {
   borderRadius: 8,
   color: 'var(--text-primary)',
   cursor: 'pointer',
-  padding: '6px 14px',
+  padding: '6px 10px',
   fontSize: 13,
   fontFamily: 'Inter, sans-serif',
   transition: 'background 0.1s',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Student } from '@/lib/types';
+import { ChevronLeft, ChevronRight, BarChart2, X } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
 interface StudentSidebarProps {
@@ -11,6 +12,9 @@ interface StudentSidebarProps {
   onStudentAdded: () => void;
   onStudentRemoved: () => void;
   onOpenScorecard: (studentId: number) => void;
+  // Mobile props
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
 export default function StudentSidebar({
@@ -20,6 +24,8 @@ export default function StudentSidebar({
   onStudentAdded,
   onStudentRemoved,
   onOpenScorecard,
+  mobileOpen,
+  onMobileClose,
 }: StudentSidebarProps) {
   const [newStudentName, setNewStudentName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -27,6 +33,10 @@ export default function StudentSidebar({
   const [showDates, setShowDates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── KEY FIX: on mobile the sheet must always show full content
+  // regardless of the desktop collapsed state.
+  const showFullContent = !collapsed || mobileOpen;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,294 +120,332 @@ export default function StudentSidebar({
     colorScheme: 'dark',
   };
 
+  // Escape key closes the mobile bottom sheet
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onMobileClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [mobileOpen, onMobileClose]);
+
   return (
-    <aside
-      className="sidebar"
-      style={{
-        width: collapsed ? 52 : 260,
-        minWidth: collapsed ? 52 : 260,
-        background: 'var(--surface)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        overflow: 'hidden',
-        flexShrink: 0,
-        zIndex: 10,
-      }}
-    >
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'space-between',
-        padding: '0 14px',
-        height: 60,
-        borderBottom: '1px solid var(--border)',
-        gap: 8,
-        flexShrink: 0,
-      }}>
-        {!collapsed && (
-          <span style={{
-            fontSize: 20,
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
-            Marks Tracker
-          </span>
-        )}
-        <button
-          id="sidebar-toggle-btn"
-          onClick={onToggle}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          style={{
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            cursor: 'pointer',
-            color: 'var(--text-muted)',
-            width: 30,
-            height: 30,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 14,
-            flexShrink: 0,
-          }}
-        >
-          {collapsed ? '→' : '←'}
-        </button>
-      </div>
+    <>
+      {/* Mobile Backdrop (z-index 299) — covers full viewport behind the sheet */}
+      <div
+        className="mobile-backdrop"
+        onClick={onMobileClose}
+        style={{
+          opacity: mobileOpen ? 1 : 0,
+          pointerEvents: mobileOpen ? 'auto' : 'none',
+          transition: 'opacity 0.22s ease',
+        }}
+      />
 
-      {/* Body */}
-      {!collapsed && (
-        <>
-          {/* Student count */}
-          <div style={{ padding: '12px 14px 8px' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Active Today ({students.length})
+      {/* Sidebar / Bottom Sheet
+          Desktop: position relative, width driven by collapsed state.
+          Mobile:  position fixed bottom sheet — width/minWidth NOT set inline
+                   so the CSS `width: 100%` can take over cleanly.
+      */}
+      <aside
+        className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}
+        style={
+          mobileOpen
+            ? undefined   // let CSS bottom-sheet styles take full control
+            : {
+                width:    collapsed ? 52 : 260,
+                minWidth: collapsed ? 52 : 260,
+                transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              }
+        }
+      >
+        {/* Drag handle — visible only on mobile, hidden on desktop via CSS */}
+        <div className="mobile-drag-handle" aria-hidden="true" />
+
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: showFullContent ? 'space-between' : 'center',
+          padding: '0 14px',
+          height: 60,
+          borderBottom: '1px solid var(--border)',
+          gap: 8,
+          flexShrink: 0,
+        }}>
+          {showFullContent && (
+            <span style={{
+              fontSize: 20,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              Marks Tracker
             </span>
+          )}
+
+          <div style={{ display: 'flex', gap: 6 }}>
+            {/* Desktop collapse toggle — hidden on mobile via CSS */}
+            <button
+              id="sidebar-toggle-btn"
+              className="desktop-sidebar-toggle sidebar-icon-btn"
+              onClick={onToggle}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+
+            {/* Mobile close button — hidden on desktop via CSS */}
+            <button
+              className="mobile-sidebar-close sidebar-icon-btn"
+              onClick={onMobileClose}
+              aria-label="Close panel"
+            >
+              <X size={16} />
+            </button>
           </div>
+        </div>
 
-          {/* Add Student Form */}
-          <div style={{ padding: '0 14px 14px', borderBottom: '1px solid var(--border)' }}>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input
-                type="text"
-                value={newStudentName}
-                onChange={e => { setNewStudentName(e.target.value); setError(null); }}
-                placeholder="Student name..."
-                required
-                maxLength={100}
-                style={inputStyle}
-              />
+        {/* Body — only rendered when sidebar is expanded OR on mobile */}
+        {showFullContent && (
+          <>
+            {/* Student count */}
+            <div style={{ padding: '12px 14px 8px' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Active Today ({students.length})
+              </span>
+            </div>
 
-              {/* Toggle date fields */}
-              <button
-                type="button"
-                onClick={() => setShowDates(v => !v)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  fontSize: 11,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <span style={{ transform: showDates ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.15s', fontSize: 10 }}>▶</span>
-                Internship dates (optional)
-              </button>
+            {/* Add Student Form */}
+            <div style={{ padding: '0 14px 14px', borderBottom: '1px solid var(--border)' }}>
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  type="text"
+                  value={newStudentName}
+                  onChange={e => { setNewStudentName(e.target.value); setError(null); }}
+                  placeholder="Student name..."
+                  required
+                  maxLength={100}
+                  style={inputStyle}
+                />
 
-              {showDates && (
+                {/* Toggle date fields */}
+                <button
+                  type="button"
+                  onClick={() => setShowDates(v => !v)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <ChevronRight
+                    size={12}
+                    style={{
+                      transform: showDates ? 'rotate(90deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.15s',
+                    }}
+                  />
+                  Internship dates (optional)
+                </button>
+
+                {showDates && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div>
+                      <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Start date</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={e => { setStartDate(e.target.value); setError(null); }}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>End date</label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        min={startDate || undefined}
+                        onChange={e => { setEndDate(e.target.value); setError(null); }}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !newStudentName.trim()}
+                  style={{
+                    background: 'var(--accent)',
+                    border: 'none',
+                    borderRadius: 8,
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    width: '100%',
+                    opacity: (isSubmitting || !newStudentName.trim()) ? 0.6 : 1,
+                    transition: 'background 0.1s',
+                  }}
+                >
+                  {isSubmitting ? 'Adding…' : 'Add Student'}
+                </button>
+
+                {error && (
+                  <span style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>
+                    {error}
+                  </span>
+                )}
+              </form>
+            </div>
+
+            {/* Student list */}
+            <div className="sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
+              {sortedStudents.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', marginTop: 16 }}>
+                  No active students today.
+                </p>
+              ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Start date</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={e => { setStartDate(e.target.value); setError(null); }}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>End date</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      min={startDate || undefined}
-                      onChange={e => { setEndDate(e.target.value); setError(null); }}
-                      style={inputStyle}
-                    />
-                  </div>
+                  {sortedStudents.map(student => (
+                    <div
+                      key={student.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--border)',
+                        gap: 6,
+                        minWidth: 0,
+                      }}
+                    >
+                      {/* Name — clickable to open scorecard */}
+                      <button
+                        onClick={() => {
+                          if (mobileOpen) onMobileClose();
+                          onOpenScorecard(student.id);
+                        }}
+                        aria-label={`View scorecard for ${student.name}`}
+                        title="View scorecard"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          flex: 1,
+                          minWidth: 0,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          color: 'var(--text-primary)',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {student.name}
+                      </button>
+
+                      {/* Scorecard icon */}
+                      <button
+                        onClick={() => {
+                          if (mobileOpen) onMobileClose();
+                          onOpenScorecard(student.id);
+                        }}
+                        aria-label={`Scorecard for ${student.name}`}
+                        title="View scorecard"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 24,
+                          height: 24,
+                          borderRadius: 4,
+                          padding: 0,
+                          flexShrink: 0,
+                          transition: 'background 0.1s, color 0.1s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(13, 148, 136, 0.15)';
+                          e.currentTarget.style.color = 'var(--accent)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = 'var(--text-muted)';
+                        }}
+                      >
+                        <BarChart2 size={15} />
+                      </button>
+
+                      {/* Remove button */}
+                      <button
+                        onClick={() => handleRemove(student.id, student.name)}
+                        aria-label={`Remove ${student.name}`}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 24,
+                          height: 24,
+                          borderRadius: 4,
+                          padding: 0,
+                          flexShrink: 0,
+                          transition: 'background 0.1s, color 0.1s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                          e.currentTarget.style.color = '#ef4444';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = 'var(--text-muted)';
+                        }}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
+            </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting || !newStudentName.trim()}
-                style={{
-                  background: 'var(--accent)',
-                  border: 'none',
-                  borderRadius: 8,
-                  color: '#fff',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  width: '100%',
-                  opacity: (isSubmitting || !newStudentName.trim()) ? 0.6 : 1,
-                  transition: 'background 0.1s',
-                }}
-              >
-                {isSubmitting ? 'Adding…' : 'Add Student'}
-              </button>
-
-              {error && (
-                <span style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>
-                  {error}
-                </span>
-              )}
-            </form>
-          </div>
-
-          {/* Student list */}
-          <div className="sidebar-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
-            {sortedStudents.length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', marginTop: 16 }}>
-                No active students today.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {sortedStudents.map(student => (
-                  <div
-                    key={student.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      background: 'var(--surface-2)',
-                      border: '1px solid var(--border)',
-                      gap: 6,
-                      minWidth: 0,
-                    }}
-                  >
-                    {/* Name — clickable to open scorecard */}
-                    <button
-                      onClick={() => onOpenScorecard(student.id)}
-                      aria-label={`View scorecard for ${student.name}`}
-                      title="View scorecard"
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        flex: 1,
-                        minWidth: 0,
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        color: 'var(--text-primary)',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {student.name}
-                    </button>
-
-                    {/* Scorecard icon */}
-                    <button
-                      onClick={() => onOpenScorecard(student.id)}
-                      aria-label={`Scorecard for ${student.name}`}
-                      title="View scorecard"
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        fontSize: 13,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 22,
-                        height: 22,
-                        borderRadius: 4,
-                        padding: 0,
-                        flexShrink: 0,
-                        transition: 'background 0.1s, color 0.1s',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(13, 148, 136, 0.15)';
-                        e.currentTarget.style.color = 'var(--accent)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--text-muted)';
-                      }}
-                    >
-                      📊
-                    </button>
-
-                    {/* Remove button */}
-                    <button
-                      onClick={() => handleRemove(student.id, student.name)}
-                      aria-label={`Remove ${student.name}`}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        fontSize: 15,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 22,
-                        height: 22,
-                        borderRadius: 4,
-                        padding: 0,
-                        flexShrink: 0,
-                        transition: 'background 0.1s, color 0.1s',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                        e.currentTarget.style.color = '#ef4444';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--text-muted)';
-                      }}
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Theme toggle */}
-          <div style={{
-            padding: '14px 16px',
-            borderTop: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexShrink: 0,
-          }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>Theme</span>
-            <ThemeToggle />
-          </div>
-        </>
-      )}
-    </aside>
+            {/* Theme toggle */}
+            <div style={{
+              padding: '14px 16px',
+              borderTop: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>Theme</span>
+              <ThemeToggle />
+            </div>
+          </>
+        )}
+      </aside>
+    </>
   );
 }

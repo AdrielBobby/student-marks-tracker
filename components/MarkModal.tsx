@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Student, DayMark } from '@/lib/types';
 import { getRemark, getRemarkColor, Remark } from '@/lib/remarks';
+import { X, AlertTriangle } from 'lucide-react';
 import StudentPill from './StudentPill';
 
 interface MarkModalProps {
@@ -50,20 +51,22 @@ export default function MarkModal({ date, students, existingMarks, onClose, onSa
   };
 
   // Keyboard navigation & accessibility
+  // MarkModal handles its own Escape — z-index 400 means it is always topmost
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.stopPropagation(); // Don't bubble to page-level Escape handler
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
 
     // Focus first input on mount
     if (firstInputRef.current) {
       firstInputRef.current.focus();
     }
 
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [onClose]);
 
   // Handle click outside overlay
@@ -165,7 +168,15 @@ export default function MarkModal({ date, students, existingMarks, onClose, onSa
   const sortedStudents = [...students].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div className="modal-overlay" onClick={handleOverlayClick} role="dialog" aria-modal="true">
+    /* z-index: 400 — sits above sidebar drawer (300) and scorecard (400, same level but scorecard
+       closes before modal can open since they use the same interaction path) */
+    <div
+      className="modal-overlay"
+      onClick={handleOverlayClick}
+      role="dialog"
+      aria-modal="true"
+      style={{ zIndex: 400 }}
+    >
       <div className="modal" ref={modalRef}>
         {/* Header */}
         <div style={{
@@ -191,13 +202,16 @@ export default function MarkModal({ date, students, existingMarks, onClose, onSa
               background: 'none',
               border: 'none',
               color: 'var(--text-muted)',
-              fontSize: 20,
               cursor: 'pointer',
               padding: 4,
               lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 6,
             }}
           >
-            &times;
+            <X size={20} />
           </button>
         </div>
 
@@ -215,7 +229,7 @@ export default function MarkModal({ date, students, existingMarks, onClose, onSa
             alignItems: 'center',
             gap: 8,
           }}>
-            <span>⚠️</span>
+            <AlertTriangle size={16} />
             <span>You are entering marks for a future date.</span>
           </div>
         )}
@@ -326,12 +340,10 @@ export default function MarkModal({ date, students, existingMarks, onClose, onSa
                             borderRadius: 6,
                             color: currentMarkVal === null ? 'transparent' : 'var(--text-muted)',
                             cursor: currentMarkVal === null ? 'default' : 'pointer',
-                            fontSize: 16,
-                            lineHeight: 1,
                             transition: 'color 0.1s',
                           }}
                         >
-                          &times;
+                          <X size={16} />
                         </button>
                       </div>
                     </div>

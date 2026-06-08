@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 import { ScorecardData } from '@/lib/types';
 import { getRemarkColor, Remark } from '@/lib/remarks';
 
@@ -62,13 +63,18 @@ export default function ScorecardPanel({ studentId, onClose }: ScorecardPanelPro
       .finally(() => setIsLoading(false));
   }, [studentId, isOpen]);
 
-  // Escape key
+  // Escape key — z-index 400 top-level, handles its own Escape in capture phase
+  // Precedence: scorecard closes first (before sidebar) if both were somehow open
   useEffect(() => {
+    if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose();
+      if (e.key === 'Escape') {
+        e.stopPropagation(); // Prevent sidebar Escape handler from also firing
+        onClose();
+      }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
   }, [isOpen, onClose]);
 
   const coveragePct = data?.coverage !== null && data?.coverage !== undefined
@@ -81,7 +87,7 @@ export default function ScorecardPanel({ studentId, onClose }: ScorecardPanelPro
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — z-index 399 (below the panel itself at 400) */}
       <div
         onClick={onClose}
         style={{
@@ -90,37 +96,23 @@ export default function ScorecardPanel({ studentId, onClose }: ScorecardPanelPro
           background: 'rgba(0,0,0,0.4)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
-          zIndex: 200,
+          zIndex: 399,
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           transition: 'opacity 0.25s ease',
         }}
       />
 
-      {/* Slide-over drawer */}
+      {/* Panel — desktop: right-rail slide-over | mobile: full-screen bottom-sheet
+         CSS class .scorecard-panel sets position:fixed + transforms.
+         z-index: 400 is also set in CSS but duplicated here for safety. */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Student scorecard"
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 380,
-          maxWidth: '94vw',
-          background: 'var(--surface)',
-          borderLeft: '1px solid var(--border)',
-          zIndex: 201,
-          display: 'flex',
-          flexDirection: 'column',
-          transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
-          boxShadow: '-16px 0 48px rgba(0,0,0,0.25)',
-          overflowY: 'auto',
-        }}
-        className="sidebar-scroll"
+        className="scorecard-panel"
+        data-open={isOpen ? 'true' : 'false'}
       >
         {/* Header */}
         <div style={{
@@ -167,16 +159,15 @@ export default function ScorecardPanel({ studentId, onClose }: ScorecardPanelPro
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 16,
               flexShrink: 0,
             }}
           >
-            &times;
+            <X size={16} />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, padding: '20px 24px 32px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ flex: 1, padding: '20px 24px 32px', display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }} className="sidebar-scroll">
 
           {/* Loading / error states */}
           {isLoading && (

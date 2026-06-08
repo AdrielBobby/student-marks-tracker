@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Sun, Moon } from 'lucide-react';
 
 export default function ThemeToggle() {
   const [isDark, setIsDark] = useState(true);
@@ -28,11 +29,26 @@ export default function ThemeToggle() {
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
-      <span className="theme-toggle__icon">☀️</span>
+      {/* Sun icon — left side, dimmed when dark */}
+      <span className="theme-toggle__icon" aria-hidden="true">
+        <Sun size={14} strokeWidth={2} />
+      </span>
+
+      {/* Sliding thumb — contains the ACTIVE icon so it renders centred in the circle */}
       <span
         className={`theme-toggle__thumb ${isDark ? 'theme-toggle__thumb--dark' : 'theme-toggle__thumb--light'}`}
-      />
-      <span className="theme-toggle__icon">🌙</span>
+        aria-hidden="true"
+      >
+        {isDark
+          ? <Moon size={14} strokeWidth={2} />
+          : <Sun  size={14} strokeWidth={2} />
+        }
+      </span>
+
+      {/* Moon icon — right side, dimmed when light */}
+      <span className="theme-toggle__icon" aria-hidden="true">
+        <Moon size={14} strokeWidth={2} />
+      </span>
     </button>
   );
 }
