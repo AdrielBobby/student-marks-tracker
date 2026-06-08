@@ -1,13 +1,12 @@
+/* ─────────────────────────────────────────────
+   Google Fonts — Inter
+   @import MUST precede all other rules (CSS spec).
+───────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* ─────────────────────────────────────────────
-   Google Fonts — Inter
-   Imported after Tailwind directives to avoid
-   PostCSS ordering issues.
-───────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 /* ─────────────────────────────────────────────
    Design Tokens — Light Mode (default)

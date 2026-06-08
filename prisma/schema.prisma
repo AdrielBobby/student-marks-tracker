@@ -12,7 +12,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  // url is set in prisma.config.ts → datasource.url via DATABASE_URL env var
 }
 
 // ─────────────────────────────────────────────
