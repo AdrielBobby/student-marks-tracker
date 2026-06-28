@@ -69,3 +69,30 @@ npx.cmd prisma migrate reset
 ```
 
 It will ask you to confirm that you want to reset the database. Type `y` and press Enter.
+
+## Docker
+
+### Build and start
+
+```bash
+docker compose up --build
+```
+
+### First run only — apply migrations
+
+```bash
+docker compose exec app npx prisma migrate deploy
+```
+
+### Stop
+
+```bash
+docker compose down
+```
+
+### Stop and wipe database (careful)
+
+```bash
+docker compose down -v
+```
+
