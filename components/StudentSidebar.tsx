@@ -30,7 +30,6 @@ export default function StudentSidebar({
   const [newStudentName, setNewStudentName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [showDates, setShowDates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,9 +47,17 @@ export default function StudentSidebar({
       return;
     }
 
-    // Client-side date validation
-    if (startDate && endDate && endDate < startDate) {
-      setError('End date must be on or after start date');
+    // Client-side date validation — both dates are mandatory
+    if (!startDate) {
+      setError('Start date is required');
+      return;
+    }
+    if (!endDate) {
+      setError('End date is required');
+      return;
+    }
+    if (endDate < startDate) {
+      setError('End date must be after start date');
       return;
     }
 
@@ -58,9 +65,7 @@ export default function StudentSidebar({
     setError(null);
 
     try {
-      const body: Record<string, string> = { name };
-      if (startDate) body.startDate = startDate;
-      if (endDate)   body.endDate   = endDate;
+      const body: Record<string, string> = { name, startDate, endDate };
 
       const res = await fetch('/api/students', {
         method: 'POST',
@@ -76,7 +81,6 @@ export default function StudentSidebar({
       setNewStudentName('');
       setStartDate('');
       setEndDate('');
-      setShowDates(false);
       onStudentAdded();
     } catch (err: any) {
       console.error('[Add Student Error]', err);
@@ -232,56 +236,33 @@ export default function StudentSidebar({
                   style={inputStyle}
                 />
 
-                {/* Toggle date fields */}
-                <button
-                  type="button"
-                  onClick={() => setShowDates(v => !v)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    fontSize: 11,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <ChevronRight
-                    size={12}
-                    style={{
-                      transform: showDates ? 'rotate(90deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.15s',
-                    }}
-                  />
-                  Internship dates (optional)
-                </button>
-
-                {showDates && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div>
-                      <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Start date</label>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={e => { setStartDate(e.target.value); setError(null); }}
-                        style={inputStyle}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>End date</label>
-                      <input
-                        type="date"
-                        value={endDate}
-                        min={startDate || undefined}
-                        onChange={e => { setEndDate(e.target.value); setError(null); }}
-                        style={inputStyle}
-                      />
-                    </div>
+                {/* Internship dates — always visible, required */}
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
+                  Internship dates
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Start date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      required
+                      onChange={e => { setStartDate(e.target.value); setError(null); }}
+                      style={inputStyle}
+                    />
                   </div>
-                )}
+                  <div>
+                    <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>End date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      required
+                      min={startDate || undefined}
+                      onChange={e => { setEndDate(e.target.value); setError(null); }}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
 
                 <button
                   type="submit"

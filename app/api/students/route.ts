@@ -3,7 +3,7 @@
  * GET  /api/students?scope=activeToday   — Same as default
  * GET  /api/students?scope=all           — All non-soft-deleted students
  * GET  /api/students?date=YYYY-MM-DD     — Students active on a specific date (for modal filtering)
- * POST /api/students                     — Creates a new student (with optional start/end dates)
+ * POST /api/students                     — Creates a new student (startDate & endDate required)
  *
  * ACTIVE-TODAY / DATE FILTERING LOGIC:
  *   A student is eligible on a given date D if ALL of the following hold:
@@ -119,34 +119,40 @@ export async function POST(request: Request) {
       );
     }
 
-    // Optional internship dates
-    let startDate: Date | null = null;
-    let endDate: Date | null = null;
-
-    if (body?.startDate) {
-      startDate = parseUTCDay(String(body.startDate));
-      if (!startDate) {
-        return NextResponse.json(
-          { error: 'Invalid startDate format. Expected YYYY-MM-DD.' },
-          { status: 400 },
-        );
-      }
+    // Required internship dates
+    if (!body?.startDate) {
+      return NextResponse.json(
+        { error: 'Start date is required' },
+        { status: 400 },
+      );
+    }
+    if (!body?.endDate) {
+      return NextResponse.json(
+        { error: 'End date is required' },
+        { status: 400 },
+      );
     }
 
-    if (body?.endDate) {
-      endDate = parseUTCDay(String(body.endDate));
-      if (!endDate) {
-        return NextResponse.json(
-          { error: 'Invalid endDate format. Expected YYYY-MM-DD.' },
-          { status: 400 },
-        );
-      }
+    const startDate = parseUTCDay(String(body.startDate));
+    if (!startDate) {
+      return NextResponse.json(
+        { error: 'Invalid startDate format. Expected YYYY-MM-DD.' },
+        { status: 400 },
+      );
+    }
+
+    const endDate = parseUTCDay(String(body.endDate));
+    if (!endDate) {
+      return NextResponse.json(
+        { error: 'Invalid endDate format. Expected YYYY-MM-DD.' },
+        { status: 400 },
+      );
     }
 
     // Validate range consistency
-    if (startDate && endDate && endDate < startDate) {
+    if (endDate < startDate) {
       return NextResponse.json(
-        { error: 'endDate must be on or after startDate.' },
+        { error: 'End date must be after start date.' },
         { status: 400 },
       );
     }
@@ -154,8 +160,8 @@ export async function POST(request: Request) {
     const student = await prisma.student.create({
       data: {
         name,
-        startDate: startDate ?? undefined,
-        endDate:   endDate   ?? undefined,
+        startDate,
+        endDate,
       },
     });
     return NextResponse.json(student, { status: 201 });
